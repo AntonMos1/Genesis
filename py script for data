@@ -12,6 +12,7 @@ conn = {
     'database': 'VMart'
 }
 
+
 with vp.connect(**conn) as connection:
     cur = connection.cursor()
     path = "C:\\Users\\User\\Desktop\\sandbox.KNU"
@@ -22,11 +23,32 @@ with vp.connect(**conn) as connection:
         for t in tables:
             tpath = path + "\\" + sch + "\\" + t
             print(tpath)
-            df_init = pd.read_csv(tpath, delimiter='\t')#в датафрейм пандасу файл
+            df_init = pd.read_csv(tpath, delimiter='\t')  # в датафрейм пандасу файл
+
+            #заисуемо дати як дати
+            datas = []
+            for col in df_init.columns:
+                if "dt" in col:
+                    df_init[col] = pd.to_datetime(df_init[col], errors='coerce')
+
             df = pandas_to_vertica(df=df_init, name=t[:-4:], cursor=cur, schema=sch)#в датафрейм вертіки з дф пандасу
-            try: #записуемо датафрейм вертіки в бд
-                df.to_db(name=sch+"."+t[:-4:], relation_type='table')
-            except vp.errors.DuplicateObject: #якщо вже тейбл існуе то ми зловимо виключення і перезапищемо
-                df.to_db(name=sch + "." + t[:-4:], relation_type='insert')
-            connection.commit() #комітимо зміну
-    cur.closed()
+            try:
+                try:
+                    df.to_db(name=sch + "." + t[:-4:], relation_type='table')
+                except vp.errors.DuplicateObject:  # if table exist
+                    try:
+                        pd.read_sql("drop table " + sch + "." + t[:-4:], connection)
+                    except TypeError:  # always
+                        pass
+                    df.to_db(name=sch + "." + t[:-4:], relation_type='table')
+            except vp.errors.InterfaceError:
+                try:  # при неправильному запиті курсор буде злітати і його треба репозначити
+                    cur.close()
+                    cur = connection.cursor()
+                except:  # на всяк випадок
+                    connection.close()
+                    connection = vp.connect(**conn)
+                cur = connection.cursor()
+                df.to_db(name=sch + "." + t[:-4:], relation_type='table')
+    connection.commit()
+    cur.close()
