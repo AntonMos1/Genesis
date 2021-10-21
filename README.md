@@ -1,1 +1,1 @@
-Script and sql finished, anomals not
+Script finished, anomals not
