@@ -35,13 +35,12 @@ WITH T1 AS (SELECT id, count(dt) as num FROM product.users LEFT JOIN product.use
 SELECT * FROM RES WHERE rate>0.3;
 
 --7.1
-SELECT user_app, count(ALL dt) msgs FROM (SELECT dt, LOWERB(user_app) user_app FROM product.activities) as res GROUP BY user_app;
+SELECT user_app, count(dt) msgs FROM (SELECT dt, LOWERB(user_app) user_app FROM product.activities WHERE activity_type=27) as res GROUP BY user_app;
 --7.2
-WITH T1 AS (SELECT count(user_id) chats FROM ((SELECT user_id, contact_id FROM product.activities WHERE LOWERB(user_app)='desktop') UNION DISTINCT (SELECT contact_id, user_id FROM product.activities WHERE LOWERB(user_app)='desktop')) as uni),
-     T2 AS (SELECT count(user_id) chats FROM ((SELECT user_id, contact_id FROM product.activities WHERE LOWERB(user_app)='mobile') UNION DISTINCT (SELECT contact_id, user_id FROM product.activities WHERE LOWERB(user_app)='mobile')) as uni),
-     T3 AS (SELECT count(user_id) chats FROM ((SELECT user_id, contact_id FROM product.activities) UNION DISTINCT (SELECT contact_id, user_id FROM product.activities)) as uni),
-     RES AS (SELECT T1.chats desktop_chats, T2.chats mobile_chats, T3.chats total_chats FROM T1, T2, T3)
-SELECT * FROM RES;
+WITH T1 AS ((SELECT user_id, contact_id, LOWER(user_app) user_app FROM product.activities WHERE activity_type=27) UNION DISTINCT (SELECT contact_id, user_id, LOWER(user_app) user_app FROM product.activities WHERE activity_type=27)),
+     T2 AS (SELECT user_app, CAST(count(user_id)/2 AS int) chats FROM T1 as uni GROUP BY user_app),
+     T3 AS (SELECT CAST(count(user_id)/2 AS int) total FROM ((SELECT user_id, contact_id FROM product.activities WHERE activity_type=27) UNION DISTINCT (SELECT contact_id, user_id FROM product.activities WHERE activity_type=27)) as uni)
+SELECT * FROM T2, T3;
 
 --8
 WITH T1 as (SELECT id, duration, ses_end FROM ((SELECT id, reg_dt FROM product.users) as res12
